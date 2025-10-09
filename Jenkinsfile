@@ -3,14 +3,13 @@ pipeline {
 
     environment {
         WORKSPACE_DIR = "${WORKSPACE}"
-        DOCKER_COMPOSE = "${WORKSPACE}/docker-compose.yml"
+        DOCKER_COMPOSE = "/usr/local/bin/docker-compose"  // Full path
         MODEL_PATH = "${WORKSPACE}/model/diabetes_rf_model.pkl"
         MLFLOW_TRACKING_URI = "http://mlflow-server:5000"
     }
 
     stages {
 
-        // ----------------------
         stage('Checkout Code') {
             steps {
                 git branch: 'main',
@@ -19,7 +18,6 @@ pipeline {
             }
         }
 
-        // ----------------------
         stage('Setup Environment') {
             steps {
                 echo "Installing Python dependencies..."
@@ -31,7 +29,6 @@ pipeline {
             }
         }
 
-        // ----------------------
         stage('Extract Data') {
             steps {
                 echo "Downloading dataset..."
@@ -42,7 +39,6 @@ pipeline {
             }
         }
 
-        // ----------------------
         stage('Validate Data') {
             steps {
                 echo "Validating dataset..."
@@ -56,7 +52,6 @@ pipeline {
             }
         }
 
-        // ----------------------
         stage('Prepare Data') {
             steps {
                 echo "Preparing dataset..."
@@ -70,21 +65,20 @@ pipeline {
             }
         }
 
-        // ----------------------
         stage('Train Model') {
             steps {
                 echo "Training Random Forest model using Docker Compose..."
                 sh """
-                    # Ensure docker-compose exists
-                    if ! command -v docker-compose &> /dev/null; then
+                    # Check docker-compose exists
+                    if [ ! -x "$DOCKER_COMPOSE" ]; then
                         echo "docker-compose not installed!"
                         exit 1
                     fi
 
-                    # Start MLflow server first
-                    docker-compose up -d mlflow-server
+                    # Start MLflow server
+                    $DOCKER_COMPOSE up -d mlflow-server
 
-                    # Wait for MLflow server to be ready
+                    # Wait for MLflow server
                     echo "Waiting for MLflow server..."
                     until curl -s ${MLFLOW_TRACKING_URI}/api/2.0/mlflow/experiments/list; do
                         sleep 3
@@ -92,22 +86,20 @@ pipeline {
                     done
 
                     # Run trainer container
-                    docker-compose run --rm trainer
+                    $DOCKER_COMPOSE run --rm trainer
                 """
             }
         }
 
-        // ----------------------
         stage('Deploy Model') {
             steps {
                 echo "Deploying FastAPI API..."
                 sh """
-                    docker-compose up -d diabetes-api
+                    $DOCKER_COMPOSE up -d diabetes-api
                 """
             }
         }
 
-        // ----------------------
         stage('Test Model Prediction') {
             steps {
                 echo "Testing API prediction..."
@@ -119,7 +111,6 @@ pipeline {
             }
         }
 
-        // ----------------------
         stage('Validate Monitoring') {
             steps {
                 echo "Check MLflow UI at http://localhost:5000 for logs."
@@ -131,7 +122,7 @@ pipeline {
     post {
         always {
             echo "Cleaning up containers..."
-            sh 'docker-compose down || true'
+            sh '$DOCKER_COMPOSE down || true'
         }
     }
 }
