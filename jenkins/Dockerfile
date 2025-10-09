@@ -1,10 +1,10 @@
-# Base Jenkins LTS image
+# Base Jenkins LTS
 FROM jenkins/jenkins:lts
 
 USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system dependencies + Docker CLI
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         python3 \
@@ -13,16 +13,21 @@ RUN apt-get update && \
         curl \
         git \
         docker.io \
+        unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Create Python virtual environment
+# Install docker-compose v2 (binary)
+RUN curl -L "https://github.com/docker/compose/releases/download/v2.23.1/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose
+
+# Create Python venv
 RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip
 
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Add Jenkins user to Docker group
-ARG DOCKER_GID=999  # Replace 999 with your host Docker GID
+ARG DOCKER_GID=999
 RUN groupadd -g $DOCKER_GID docker || true && \
     usermod -aG docker jenkins && \
     mkdir -p /var/jenkins_home && chown -R jenkins:jenkins /var/jenkins_home
