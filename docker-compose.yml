@@ -1,29 +1,22 @@
 services:
-  # ------------------------
-  # Jenkins
-  # ------------------------
   jenkins:
     build:
       context: .
       dockerfile: jenkins/Dockerfile
       args:
-        DOCKER_GID: 999
+        DOCKER_GID: 999  # Replace with host Docker GID
     container_name: jenkins
     ports:
-      - "8081:8080"       # Jenkins Web UI
-      - "50000:50000"     # Jenkins agent
+      - "8081:8080"
+      - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock  # Allows Jenkins to control Docker
       - .:/workspace
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
-    user: "jenkins"
     restart: unless-stopped
 
-  # ------------------------
-  # MLflow Tracking Server
-  # ------------------------
   mlflow-server:
     image: ghcr.io/mlflow/mlflow:v2.16.2
     container_name: mlflow-server
@@ -40,9 +33,6 @@ services:
       - ./mlflow:/mlflow
     restart: always
 
-  # ------------------------
-  # Model Trainer (runs once)
-  # ------------------------
   trainer:
     build: .
     container_name: diabetes-trainer
@@ -56,9 +46,6 @@ services:
       - ./mlruns:/app/mlruns
     restart: "no"
 
-  # ------------------------
-  # FastAPI Prediction API
-  # ------------------------
   diabetes-api:
     build: .
     container_name: diabetes-api
