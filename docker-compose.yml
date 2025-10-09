@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  # MLflow Server
+  mlflow-server:
+    image: ghcr.io/mlflow/mlflow:v2.16.2
+    container_name: mlflow-server
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --default-artifact-root /mlruns
+      --host 0.0.0.0
+      --port 5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlruns
+      - ./mlflow:/mlflow
+    restart: always
+
+  # Model Trainer (runs once)
+  trainer:
+    build: .
+    container_name: diabetes-trainer
+    depends_on:
+      - mlflow-server
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow-server:5000
+    command: python train_diabetes_model.py
+    volumes:
+      - ./model:/app/model
+      - ./mlruns:/app/mlruns
+    restart: "no"
+
+  # FastAPI Prediction API
+  diabetes-api:
+    build: .
+    container_name: diabetes-api
+    depends_on:
+      - mlflow-server
+      - trainer
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow-server:5000
+    command: ["./wait-for-mlflow.sh", "./wait-for-model.sh", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - ./model:/app/model
+      - ./mlruns:/app/mlruns
+    ports:
+      - "8000:8000"
+    restart: always

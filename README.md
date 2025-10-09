@@ -1,99 +1,116 @@
-# 🩺 Diabetes Prediction Model – Your First MLOps Project (FastAPI + Docker + K8s)
+# Diabetes Prediction API with FastAPI & MLflow
 
-> 🎥 YouTube video for the project: **"Build Your First MLOps Project"**
+A full **MLOps pipeline** for predicting diabetes risk using a Random Forest model, with:
 
-This project helps you learn **Building and Deploying an ML Model** using a simple and real-world use case: predicting whether a person is diabetic based on health metrics. We’ll go from:
-
-- ✅ Model Training
-- ✅ Building the Model locally
-- ✅ API Deployment with FastAPI
-- ✅ Dockerization
-- ✅ Kubernetes Deployment
+- Model training & metrics logging using **MLflow**
+- Prediction API using **FastAPI**
+- Containerized deployment with **Docker & Docker Compose**
+- Windows-compatible wait scripts
 
 ---
 
-## 📊 Problem Statement
+## Features
 
-Predict if a person is diabetic based on:
-- Pregnancies
-- Glucose
-- Blood Pressure
-- BMI
-- Age
+- **Train a model** and log metrics/parameters to MLflow
+- **Serve predictions** via FastAPI (`/predict`)  
+- Logs all **API requests & predictions to MLflow** for tracking
+- Fully containerized for **reproducible deployment**
+- Wait scripts ensure **MLflow and model are ready** before API starts
 
-We use a Random Forest Classifier trained on the **Pima Indians Diabetes Dataset**.
+
+## Project Structure
+```
+nithi-first-mlops-project/
+├── app.py # FastAPI API
+├── train_diabetes_model.py # Model training + MLflow logging
+├── Dockerfile # Container image definition
+├── docker-compose.yml # Compose for MLflow, trainer, API
+├── requirements.txt # Python dependencies
+├── wait-for-model.sh # Wait for model before API start
+├── wait-for-mlflow.sh # Wait for MLflow server before API start
+├── model/ # Saved model artifacts
+├── mlruns/ # MLflow experiment/artifacts storage
+└── mlflow/ # SQLite DB storage for MLflow
+```
+
+## Prerequisites
+
+- **Docker Desktop** installed and running
+- **Windows** users: ensure project folder is shared with Docker
+- Internet access to download dataset (`diabetes.csv` from GitHub)
 
 ---
 
-## 🚀 Quick Start
+## Setup
 
-### 1. Clone the Repo
+### 1️⃣ Create required folders
 
 ```bash
-git clone https://github.com/iam-veeramalla/first-mlops-project.git
-cd first-mlops-project
+mkdir mlflow mlruns model
 ```
 
-### 2. Create Virtual Environment
-
+2️⃣ Build and start Docker containers
+```bash
+docker compose up --build
 ```
-python3 -m venv .mlops
-source .mlops/bin/activate
-```
+mlflow-server → MLflow tracking server
 
-### 3. Install Dependencies
+trainer → Trains Random Forest model and logs metrics
 
-```
-pip install -r requirements.txt
-```
+diabetes-api → FastAPI server waits for MLflow + model
 
-## Train the Model
+## API Usage
 
-```
-python train.py
-```
+### Base URL
 
-## Run the API Locally
-
-```
-uvicorn main:app --reload
+```bash
+http://localhost:8000
 ```
 
-### Sample Input for /predict
-
-```
+#### Example /predict Request
+```json
+POST /predict
 {
   "Pregnancies": 2,
-  "Glucose": 130,
-  "BloodPressure": 70,
-  "BMI": 28.5,
+  "Glucose": 90,
+  "BloodPressure": 80,
+  "BMI": 25,
   "Age": 45
 }
 ```
 
-## Dockerize the API
+### Example Response
 
-### Build the Docker Image
-
-```
-docker build -t diabetes-prediction-model .
-```
-
-### Run the Container
-
-```
-docker run -p 8000:8000 diabetes-prediction-model
-```
-
-## Deploy to Kubernetes
-
-```
-kubectl apply -f diabetes-prediction-model-deployment.yaml
+```json
+{
+  "prediction": 0,
+  "probability_diabetes": 0.1403,
+  "input_data": {
+    "Pregnancies": 2,
+    "Glucose": 90,
+    "BloodPressure": 80,
+    "BMI": 25,
+    "Age": 45
+  }
+}
 ```
 
-🙌 Credits
+1. prediction: 0 → No diabetes, 1 → Diabetes
 
-Created by `ABHISHEK VEERAMALLA`
+2. probability_diabetes: Model confidence for class 1 (diabetes)
 
-Subscribe for more DevOps + MLOps content on the YouTube Channel - `Abhishek.Veeramalla`
+3. input_data: Echoed input features
+
+## MLflow UI
+
+### Access MLflow UI:
+
+```bash
+http://localhost:5000
+```
+#### Tracks:
+
+  * Training experiment: parameters, metrics, model artifacts
+
+  * Inference logs: input features, predicted label, probability, timestamp
 
