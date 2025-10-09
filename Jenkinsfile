@@ -3,10 +3,9 @@ pipeline {
 
     environment {
         WORKSPACE_DIR = "${WORKSPACE}"
-        VENV_PATH = "${WORKSPACE}/venv"
+        DOCKER_COMPOSE = "${WORKSPACE}/docker-compose.yml"
         MODEL_PATH = "${WORKSPACE}/model/diabetes_rf_model.pkl"
         MLFLOW_TRACKING_URI = "http://mlflow-server:5000"
-        DOCKER_COMPOSE = "${WORKSPACE}/docker-compose.yml"
     }
 
     stages {
@@ -14,7 +13,6 @@ pipeline {
         // ----------------------
         stage('Checkout Code') {
             steps {
-                echo "Cloning repository..."
                 git branch: 'main',
                     url: 'https://github.com/nithi-code/nithi-first-mlops-project.git',
                     credentialsId: 'github-pat'
@@ -24,13 +22,12 @@ pipeline {
         // ----------------------
         stage('Setup Environment') {
             steps {
-                echo "Creating virtual environment and installing dependencies..."
-                sh '''
-                python3 -m venv ${VENV_PATH}
-                . ${VENV_PATH}/bin/activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
-                '''
+                echo "Installing Python dependencies..."
+                sh """
+                    python3 -m venv venv
+                    ./venv/bin/pip install --upgrade pip
+                    ./venv/bin/pip install -r requirements.txt
+                """
             }
         }
 
@@ -39,8 +36,8 @@ pipeline {
             steps {
                 echo "Downloading dataset..."
                 sh '''
-                mkdir -p data
-                curl -o data/diabetes.csv https://raw.githubusercontent.com/plotly/datasets/master/diabetes.csv
+                    mkdir -p data
+                    curl -s -o data/diabetes.csv https://raw.githubusercontent.com/plotly/datasets/master/diabetes.csv
                 '''
             }
         }
@@ -50,12 +47,11 @@ pipeline {
             steps {
                 echo "Validating dataset..."
                 sh '''
-                if [ -f validate_data.py ]; then
-                    . ${VENV_PATH}/bin/activate
-                    python validate_data.py || echo "Validation completed or no issues found."
-                else
-                    echo "No validate_data.py script found, skipping validation."
-                fi
+                    if [ -f validate_data.py ]; then
+                        ./venv/bin/python validate_data.py || echo "Validation passed or no issues found."
+                    else
+                        echo "No validate_data.py found, skipping."
+                    fi
                 '''
             }
         }
@@ -63,14 +59,13 @@ pipeline {
         // ----------------------
         stage('Prepare Data') {
             steps {
-                echo "Preparing dataset for training..."
+                echo "Preparing dataset..."
                 sh '''
-                if [ -f prepare_data.py ]; then
-                    . ${VENV_PATH}/bin/activate
-                    python prepare_data.py || echo "Data preparation completed."
-                else
-                    echo "No prepare_data.py script found, skipping preparation."
-                fi
+                    if [ -f prepare_data.py ]; then
+                        ./venv/bin/python prepare_data.py || echo "Data preparation done."
+                    else
+                        echo "No prepare_data.py found, skipping."
+                    fi
                 '''
             }
         }
@@ -78,41 +73,48 @@ pipeline {
         // ----------------------
         stage('Train Model') {
             steps {
-                echo "Training Random Forest model using Docker..."
-                sh '''
-                if command -v docker-compose >/dev/null 2>&1; then
+                echo "Training Random Forest model using Docker Compose..."
+                sh """
+                    # Ensure docker-compose exists
+                    if ! command -v docker-compose &> /dev/null; then
+                        echo "docker-compose not installed!"
+                        exit 1
+                    fi
+
+                    # Start MLflow server first
+                    docker-compose up -d mlflow-server
+
+                    # Wait for MLflow server to be ready
+                    echo "Waiting for MLflow server..."
+                    until curl -s ${MLFLOW_TRACKING_URI}/api/2.0/mlflow/experiments/list; do
+                        sleep 3
+                        echo "Retrying..."
+                    done
+
+                    # Run trainer container
                     docker-compose run --rm trainer
-                else
-                    echo "docker-compose not found. Please install docker-compose."
-                    exit 1
-                fi
-                '''
+                """
             }
         }
 
         // ----------------------
         stage('Deploy Model') {
             steps {
-                echo "Deploying FastAPI prediction API..."
-                sh '''
-                if command -v docker-compose >/dev/null 2>&1; then
+                echo "Deploying FastAPI API..."
+                sh """
                     docker-compose up -d diabetes-api
-                else
-                    echo "docker-compose not found. Please install docker-compose."
-                    exit 1
-                fi
-                '''
+                """
             }
         }
 
         // ----------------------
         stage('Test Model Prediction') {
             steps {
-                echo "Testing API with a sample prediction request..."
+                echo "Testing API prediction..."
                 sh '''
-                curl -X POST http://localhost:8000/predict \
-                    -H 'Content-Type: application/json' \
-                    -d '{"Pregnancies":2,"Glucose":90,"BloodPressure":80,"BMI":25,"Age":45}'
+                    curl -s -X POST http://localhost:8000/predict \
+                        -H 'Content-Type: application/json' \
+                        -d '{"Pregnancies":2,"Glucose":90,"BloodPressure":80,"BMI":25,"Age":45}'
                 '''
             }
         }
@@ -120,22 +122,16 @@ pipeline {
         // ----------------------
         stage('Validate Monitoring') {
             steps {
-                echo "Validating MLflow logs..."
-                sh 'echo "Check MLflow UI at http://localhost:5000 for training and inference logs."'
+                echo "Check MLflow UI at http://localhost:5000 for logs."
             }
         }
+
     }
 
     post {
         always {
-            echo "Cleaning up Docker containers..."
-            sh '''
-            if command -v docker-compose >/dev/null 2>&1; then
-                docker-compose down
-            else
-                echo "docker-compose not found, skipping cleanup."
-            fi
-            '''
+            echo "Cleaning up containers..."
+            sh 'docker-compose down || true'
         }
     }
 }

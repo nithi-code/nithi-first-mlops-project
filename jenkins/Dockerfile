@@ -1,10 +1,12 @@
-# Base image: official Jenkins LTS
+# Base image: Jenkins LTS
 FROM jenkins/jenkins:lts
 
 USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies (Python, Git, Docker CLI, curl, etc.)
+# ------------------------
+# Install system dependencies: Python, Git, Docker CLI
+# ------------------------
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         python3 \
@@ -12,31 +14,54 @@ RUN apt-get update && \
         python3-pip \
         curl \
         git \
-        docker.io \
+        sudo \
+        gnupg \
+        lsb-release \
+        ca-certificates \
+        apt-transport-https \
+        software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Docker Compose manually
-RUN curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+# ------------------------
+# Install Docker CLI (from Docker repository)
+# ------------------------
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" \
+    | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y docker-ce-cli
+
+# ------------------------
+# Install Docker Compose
+# ------------------------
+RUN curl -L "https://github.com/docker/compose/releases/download/v2.21.1/docker-compose-linux-x86_64" \
     -o /usr/local/bin/docker-compose && \
-    chmod +x /usr/local/bin/docker-compose && \
-    ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
 
-# Verify installations
-RUN docker --version && docker-compose --version && python3 --version && pip3 --version
+# ------------------------
+# Create Python virtual environment
+# ------------------------
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip
 
+ENV PATH="/opt/venv/bin:$PATH"
+
+# ------------------------
 # Allow Jenkins user to use Docker safely
+# ------------------------
 ARG DOCKER_GID=999
 RUN groupadd -g $DOCKER_GID docker || true && \
     usermod -aG docker jenkins && \
-    mkdir -p /var/jenkins_home && \
-    chown -R jenkins:jenkins /var/jenkins_home
+    mkdir -p /var/jenkins_home && chown -R jenkins:jenkins /var/jenkins_home
 
+# ------------------------
+# Switch back to Jenkins user
+# ------------------------
 USER jenkins
 WORKDIR /var/jenkins_home
 
-# Expose Jenkins web UI
-EXPOSE 8080
+# Expose Jenkins UI and agent port
+EXPOSE 8080 50000
 
-# Correct entrypoint for Jenkins
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/usr/local/bin/jenkins.sh"]
