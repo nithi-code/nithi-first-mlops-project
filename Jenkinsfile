@@ -6,7 +6,7 @@ pipeline {
         VENV_PATH = "${WORKSPACE}/venv"
         MODEL_PATH = "${WORKSPACE}/model/diabetes_rf_model.pkl"
         MLFLOW_TRACKING_URI = "http://mlflow-server:5000"
-        DOCKER_COMPOSE_FILE = "${WORKSPACE}/docker-compose.yml"
+        DOCKER_COMPOSE = "${WORKSPACE}/docker-compose.yml"
     }
 
     stages {
@@ -14,6 +14,7 @@ pipeline {
         // ----------------------
         stage('Checkout Code') {
             steps {
+                echo "Cloning repository..."
                 git branch: 'main',
                     url: 'https://github.com/nithi-code/nithi-first-mlops-project.git',
                     credentialsId: 'github-pat'
@@ -23,12 +24,13 @@ pipeline {
         // ----------------------
         stage('Setup Environment') {
             steps {
-                echo "Creating Python virtual environment and installing dependencies..."
-                sh """
-                    python3 -m venv ${VENV_PATH}
-                    ${VENV_PATH}/bin/pip install --upgrade pip
-                    ${VENV_PATH}/bin/pip install -r requirements.txt
-                """
+                echo "Creating virtual environment and installing dependencies..."
+                sh '''
+                python3 -m venv ${VENV_PATH}
+                . ${VENV_PATH}/bin/activate
+                pip install --upgrade pip
+                pip install -r requirements.txt
+                '''
             }
         }
 
@@ -49,7 +51,7 @@ pipeline {
                 echo "Validating dataset..."
                 sh '''
                 if [ -f validate_data.py ]; then
-                    source ${VENV_PATH}/bin/activate
+                    . ${VENV_PATH}/bin/activate
                     python validate_data.py || echo "Validation completed or no issues found."
                 else
                     echo "No validate_data.py script found, skipping validation."
@@ -64,7 +66,7 @@ pipeline {
                 echo "Preparing dataset for training..."
                 sh '''
                 if [ -f prepare_data.py ]; then
-                    source ${VENV_PATH}/bin/activate
+                    . ${VENV_PATH}/bin/activate
                     python prepare_data.py || echo "Data preparation completed."
                 else
                     echo "No prepare_data.py script found, skipping preparation."
@@ -76,10 +78,15 @@ pipeline {
         // ----------------------
         stage('Train Model') {
             steps {
-                echo "Training Random Forest model using Docker Compose..."
-                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} down || true"
-                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} build trainer"
-                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} run --rm trainer"
+                echo "Training Random Forest model using Docker..."
+                sh '''
+                if command -v docker-compose >/dev/null 2>&1; then
+                    docker-compose run --rm trainer
+                else
+                    echo "docker-compose not found. Please install docker-compose."
+                    exit 1
+                fi
+                '''
             }
         }
 
@@ -87,7 +94,14 @@ pipeline {
         stage('Deploy Model') {
             steps {
                 echo "Deploying FastAPI prediction API..."
-                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d diabetes-api"
+                sh '''
+                if command -v docker-compose >/dev/null 2>&1; then
+                    docker-compose up -d diabetes-api
+                else
+                    echo "docker-compose not found. Please install docker-compose."
+                    exit 1
+                fi
+                '''
             }
         }
 
@@ -97,8 +111,8 @@ pipeline {
                 echo "Testing API with a sample prediction request..."
                 sh '''
                 curl -X POST http://localhost:8000/predict \
-                -H 'Content-Type: application/json' \
-                -d '{"Pregnancies":2,"Glucose":90,"BloodPressure":80,"BMI":25,"Age":45}'
+                    -H 'Content-Type: application/json' \
+                    -d '{"Pregnancies":2,"Glucose":90,"BloodPressure":80,"BMI":25,"Age":45}'
                 '''
             }
         }
@@ -106,7 +120,8 @@ pipeline {
         // ----------------------
         stage('Validate Monitoring') {
             steps {
-                echo "Check MLflow UI for training and inference logs: http://localhost:5000"
+                echo "Validating MLflow logs..."
+                sh 'echo "Check MLflow UI at http://localhost:5000 for training and inference logs."'
             }
         }
     }
@@ -114,7 +129,13 @@ pipeline {
     post {
         always {
             echo "Cleaning up Docker containers..."
-            sh "docker-compose -f ${DOCKER_COMPOSE_FILE} down || true"
+            sh '''
+            if command -v docker-compose >/dev/null 2>&1; then
+                docker-compose down
+            else
+                echo "docker-compose not found, skipping cleanup."
+            fi
+            '''
         }
     }
 }
