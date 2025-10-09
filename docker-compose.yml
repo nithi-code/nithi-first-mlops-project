@@ -1,19 +1,22 @@
 services:
-  # Jenkins CI
   jenkins:
     build:
       context: .
       dockerfile: jenkins/Dockerfile
+      args:
+        DOCKER_GID: 999  # Update to match your host Docker GID
     container_name: jenkins
     ports:
-      - "8081:8080"
+      - "8081:8080"       # Jenkins Web UI
+      - "50000:50000"     # Jenkins agent port
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
-      - .:/workspace
+      - .:/workspace      # Mount your project code
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
-    restart: always
+    user: "jenkins"
+    restart: unless-stopped
 
   # MLflow Tracking Server
   mlflow-server:

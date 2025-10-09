@@ -76,12 +76,9 @@ pipeline {
         // ----------------------
         stage('Train Model') {
             steps {
-                echo "Training the Random Forest model using Docker Compose..."
-                sh '''
-                docker-compose down || true
-                docker-compose build trainer
-                docker-compose run --rm trainer
-                '''
+                echo "Training model using Docker Compose..."
+                sh 'docker compose build trainer'
+                sh 'docker compose run --rm trainer'
             }
         }
 
