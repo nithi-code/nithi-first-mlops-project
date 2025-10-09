@@ -57,10 +57,6 @@ pipeline {
         stage('Prepare Data') {
             steps {
                 echo "Preparing dataset..."
-                sh '''
-                source ${VENV_PATH}/bin/activate
-                python prepare_data.py || echo "Data preparation done."
-                '''
             }
         }
 
