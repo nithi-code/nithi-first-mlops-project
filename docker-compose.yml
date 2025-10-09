@@ -1,15 +1,18 @@
 services:
   # Jenkins CI
   jenkins:
-    build: ./jenkins
+    build:
+      context: .
+      dockerfile: jenkins/Dockerfile
     container_name: jenkins
-    privileged: true
     ports:
-      - "8081:8080"       # Jenkins UI
-      - "50000:50000"     # Jenkins agent port
+      - "8081:8080"
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
     restart: always
 
   # MLflow Tracking Server

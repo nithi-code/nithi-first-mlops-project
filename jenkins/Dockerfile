@@ -1,10 +1,12 @@
-# Base image: official Jenkins LTS
+# ================================
+# Jenkins with Docker, Python, and Docker Compose
+# ================================
 FROM jenkins/jenkins:lts
 
 USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install required system packages
+# Install system dependencies: Python, Git, Docker CLI
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         python3 \
@@ -12,28 +14,39 @@ RUN apt-get update && \
         python3-pip \
         curl \
         git \
-        docker.io \
+        docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
-# Create and configure Python venv
+# -------------------------------
+# Install Docker Compose (latest stable release)
+# -------------------------------
+RUN curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+    -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose && \
+    ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+# -------------------------------
+# Setup Python virtual environment
+# -------------------------------
 RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip
 
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Allow Jenkins user to use Docker safely
-# Replace 999 with your host Docker group GID (`ls -l /var/run/docker.sock`)
+# -------------------------------
+# Allow Jenkins to access Docker socket
+# -------------------------------
 ARG DOCKER_GID=999
 RUN groupadd -g $DOCKER_GID docker || true && \
     usermod -aG docker jenkins && \
-    mkdir -p /var/jenkins_home && chown -R jenkins:jenkins /var/jenkins_home
+    mkdir -p /var/jenkins_home && \
+    chown -R jenkins:jenkins /var/jenkins_home
 
 USER jenkins
 WORKDIR /var/jenkins_home
 
-# Jenkins web interface
+# Expose Jenkins UI
 EXPOSE 8080
 
-# Correct entrypoint for Jenkins
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/usr/local/bin/jenkins.sh"]
