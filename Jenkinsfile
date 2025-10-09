@@ -68,35 +68,12 @@ pipeline {
         stage('Train Model') {
             steps {
                 echo "Training Random Forest model using Docker Compose..."
-                sh """
-                    # Check docker-compose exists
-                    if [ ! -x "$DOCKER_COMPOSE" ]; then
-                        echo "docker-compose not installed!"
-                        exit 1
-                    fi
-
-                    # Start MLflow server
-                    $DOCKER_COMPOSE up -d mlflow-server
-
-                    # Wait for MLflow server
-                    echo "Waiting for MLflow server..."
-                    until curl -s ${MLFLOW_TRACKING_URI}/api/2.0/mlflow/experiments/list; do
-                        sleep 3
-                        echo "Retrying..."
-                    done
-
-                    # Run trainer container
-                    $DOCKER_COMPOSE run --rm trainer
-                """
             }
         }
 
         stage('Deploy Model') {
             steps {
                 echo "Deploying FastAPI API..."
-                sh """
-                    $DOCKER_COMPOSE up -d diabetes-api
-                """
             }
         }
 
