@@ -1,24 +1,30 @@
-# Use Python base image
+# Python slim image
 FROM python:3.10-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install curl and other dependencies
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
+# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
-COPY . .
+# Copy app code
+COPY app.py /app/
 
-# Make wait scripts executable
-RUN chmod +x wait-for-model.sh wait-for-mlflow.sh
+# Copy scripts and make executable
+COPY wait-for-mlflow.sh wait-for-model.sh start-api.sh /app/
+RUN chmod +x /app/wait-for-mlflow.sh \
+    && chmod +x /app/wait-for-model.sh \
+    && chmod +x /app/start-api.sh
 
-# Expose FastAPI port
+# Copy model & mlruns (optional)
+COPY model /app/model
+COPY mlruns /app/mlruns
+
 EXPOSE 8000
-
-# Default command (overridden by docker-compose)
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./start-api.sh"]

@@ -1,23 +1,26 @@
 services:
+  # ----------------------
+  # Jenkins CI
   jenkins:
     build:
-      context: .
-      dockerfile: jenkins/Dockerfile
+      context: ./jenkins
+      dockerfile: Dockerfile
       args:
-        DOCKER_GID: 999  # Update to match your host Docker GID
+        DOCKER_GID: 999
     container_name: jenkins
     ports:
-      - "8081:8080"       # Jenkins Web UI
-      - "50000:50000"     # Jenkins agent port
+      - "8081:8080"
+      - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
-      - .:/workspace      # Mount your project code
+      - .:/workspace
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
     user: "jenkins"
     restart: unless-stopped
 
+  # ----------------------
   # MLflow Tracking Server
   mlflow-server:
     image: ghcr.io/mlflow/mlflow:v2.16.2
@@ -35,6 +38,7 @@ services:
       - ./mlflow:/mlflow
     restart: always
 
+  # ----------------------
   # Model Trainer (runs once)
   trainer:
     build: .
@@ -49,6 +53,7 @@ services:
       - ./mlruns:/app/mlruns
     restart: "no"
 
+  # ----------------------
   # FastAPI Prediction API
   diabetes-api:
     build: .
@@ -58,7 +63,8 @@ services:
       - trainer
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow-server:5000
-    command: ["./wait-for-mlflow.sh", "./wait-for-model.sh", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+      - MODEL_PATH=/app/model/diabetes_rf_model.pkl
+    command: ["./start-api.sh"]
     volumes:
       - ./model:/app/model
       - ./mlruns:/app/mlruns
