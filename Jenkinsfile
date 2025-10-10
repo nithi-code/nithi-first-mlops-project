@@ -21,11 +21,11 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 echo "Installing Python dependencies..."
-                sh """
-                    python3 -m venv venv
-                    ./venv/bin/pip install --upgrade pip
-                    ./venv/bin/pip install -r ${WORKSPACE_DIR}/diabetes-api/requirements.txt
-                """
+               // sh """
+               //     python3 -m venv venv
+               //     ./venv/bin/pip install --upgrade pip
+               //     ./venv/bin/pip install -r ${WORKSPACE_DIR}/diabetes-api/requirements.txt
+               //  """
             }
         }
 
