@@ -21,11 +21,11 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 echo "Installing Python dependencies..."
-               // sh """
-               //     python3 -m venv venv
-               //     ./venv/bin/pip install --upgrade pip
-               //     ./venv/bin/pip install -r ${WORKSPACE_DIR}/diabetes-api/requirements.txt
-               //  """
+               sh """
+                   python3 -m venv venv
+                   ./venv/bin/pip install --upgrade pip
+                   ./venv/bin/pip install -r ${WORKSPACE_DIR}/diabetes-api/requirements.txt
+                """
             }
         }
 
@@ -68,29 +68,32 @@ pipeline {
         stage('Train Model') {
             steps {
                 echo "Training Random Forest model using Docker Compose..."
+                sh 'docker compose run --rm trainer'
             }
         }
 
         stage('Deploy Model') {
             steps {
                 echo "Deploying FastAPI API..."
+                sh 'docker compose up -d diabetes-api'
             }
         }
 
         stage('Test Model Prediction') {
             steps {
                 echo "Testing API prediction..."
-                // sh '''
-                //     curl -s -X POST http://diabetes-api:8000/predict \
-                //         -H 'Content-Type: application/json' \
-                //         -d '{"Pregnancies":2,"Glucose":90,"BloodPressure":80,"BMI":25,"Age":45}'
-                // '''
+                sh '''
+                    curl -s -X POST http://diabetes-api:8000/predict \
+                        -H 'Content-Type: application/json' \
+                        -d '{"Pregnancies":2,"Glucose":90,"BloodPressure":80,"BMI":25,"Age":45}'
+                '''
             }
         }
 
         stage('Validate Monitoring') {
             steps {
                 echo "Check MLflow UI at http://localhost:5000 for logs."
+                sh 'echo "Open MLflow UI: http://localhost:5000 to validate logs"'
             }
         }
 
