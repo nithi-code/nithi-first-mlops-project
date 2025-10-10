@@ -32,36 +32,36 @@ pipeline {
         stage('Extract Data') {
             steps {
                 echo "Downloading dataset..."
-                sh '''
-                    mkdir -p data
-                    curl -s -o data/diabetes.csv https://raw.githubusercontent.com/plotly/datasets/master/diabetes.csv
-                '''
+               // sh '''
+               //     mkdir -p data
+               //     curl -s -o data/diabetes.csv https://raw.githubusercontent.com/plotly/datasets/master/diabetes.csv
+               // '''
             }
         }
 
         stage('Validate Data') {
             steps {
                 echo "Validating dataset..."
-                sh '''
-                    if [ -f validate_data.py ]; then
-                        ./venv/bin/python validate_data.py || echo "Validation passed or no issues found."
-                    else
-                        echo "No validate_data.py found, skipping."
-                    fi
-                '''
+                //sh '''
+                //    if [ -f validate_data.py ]; then
+                //        ./venv/bin/python validate_data.py || echo "Validation passed or no issues found."
+                //    else
+                //        echo "No validate_data.py found, skipping."
+                //    fi
+                //'''
             }
         }
 
         stage('Prepare Data') {
             steps {
                 echo "Preparing dataset..."
-                sh '''
-                    if [ -f prepare_data.py ]; then
-                        ./venv/bin/python prepare_data.py || echo "Data preparation done."
-                    else
-                        echo "No prepare_data.py found, skipping."
-                    fi
-                '''
+                // sh '''
+                //    if [ -f prepare_data.py ]; then
+                //        ./venv/bin/python prepare_data.py || echo "Data preparation done."
+                //    else
+                //        echo "No prepare_data.py found, skipping."
+                //    fi
+                // '''
             }
         }
 
