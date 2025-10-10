@@ -7,14 +7,14 @@ services:
       context: .
       dockerfile: jenkins/Dockerfile
       args:
-        DOCKER_GID: 999  # Replace with your host Docker group GID
+        DOCKER_GID: 999
     container_name: jenkins
     ports:
-      - "9000:8080"       # Jenkins Web UI
-      - "50000:50000"     # Jenkins agent port
+      - "9000:8080"
+      - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock  # Allow Jenkins to run Docker
+      - /var/run/docker.sock:/var/run/docker.sock
       - .:/workspace
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
@@ -51,11 +51,11 @@ services:
       - mlflow-server
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow-server:5000
+      - GIT_PYTHON_REFRESH=quiet
     volumes:
       - ./model:/app/model
       - ./mlruns:/app/mlruns
     restart: "no"
-
 
   # ----------------------
   # FastAPI Prediction API
@@ -76,7 +76,38 @@ services:
       - ./mlruns:/app/mlruns
     ports:
       - "8000:8000"
-    command: ["./start-api.sh"]
+    command: ["/app/start-api.sh"]
+    restart: always
+
+  # ----------------------
+  # Prometheus
+  # ----------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: always
+    depends_on:
+      - diabetes-api
+
+  # ----------------------
+  # Grafana
+  # ----------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/grafana-diabetes-dashboard.json:/etc/grafana/provisioning/dashboards/diabetes-dashboard.json:ro
+    depends_on:
+      - prometheus
     restart: always
 
 volumes:

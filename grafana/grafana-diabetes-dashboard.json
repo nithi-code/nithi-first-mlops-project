@@ -1,0 +1,60 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Dashboard for Diabetes Prediction API monitoring",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "API Request Count",
+      "targets": [
+        {
+          "expr": "predict_requests_total",
+          "legendFormat": "{{method}} {{endpoint}}",
+          "refId": "A"
+        }
+      ],
+      "xaxis": { "mode": "time" },
+      "yaxis": { "format": "short" }
+    },
+    {
+      "type": "graph",
+      "title": "API Request Latency (Histogram)",
+      "targets": [
+        {
+          "expr": "predict_request_duration_seconds_bucket",
+          "legendFormat": "le={{le}}",
+          "refId": "B"
+        }
+      ],
+      "xaxis": { "mode": "time" },
+      "yaxis": { "format": "short" }
+    },
+    {
+      "type": "graph",
+      "title": "Predicted Probability of Diabetes",
+      "targets": [
+        {
+          "expr": "predicted_probability",
+          "legendFormat": "{{endpoint}}",
+          "refId": "C"
+        }
+      ],
+      "xaxis": { "mode": "time" },
+      "yaxis": { "format": "percent" }
+    }
+  ],
+  "title": "Diabetes API Monitoring",
+  "schemaVersion": 37,
+  "version": 1
+}

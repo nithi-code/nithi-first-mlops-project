@@ -5,11 +5,16 @@ import numpy as np
 import mlflow
 import os
 from datetime import datetime
+from prometheus_fastapi_instrumentator import Instrumentator
 
 MODEL_PATH = os.getenv("MODEL_PATH", "/app/model/diabetes_rf_model.pkl")
 EXPERIMENT_NAME = "Diabetes-Prediction-Inference"
 
 app = FastAPI(title="Diabetes Prediction API", version="1.0")
+
+# Prometheus metrics
+instrumentator = Instrumentator()
+instrumentator.instrument(app).expose(app, endpoint="/metrics")
 
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(f"Model not found at {MODEL_PATH}. Train it first!")
@@ -33,7 +38,7 @@ def predict(data: DiabetesInput):
     prediction = int(model.predict(features)[0])
     probability = float(model.predict_proba(features)[0][1])
 
-    # Log inference
+    # Log inference to MLflow
     mlflow.set_experiment(EXPERIMENT_NAME)
     with mlflow.start_run(run_name="inference", nested=True):
         for k, v in data.dict().items():

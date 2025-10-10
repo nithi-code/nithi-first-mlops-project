@@ -5,4 +5,5 @@ scikit-learn
 pandas
 joblib
 mlflow
-pydantic
+prometheus-fastapi-instrumentator
+
