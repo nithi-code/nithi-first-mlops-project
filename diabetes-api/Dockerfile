@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY requirements.txt . 
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
 
 # Copy app code
 COPY app.py /app/
@@ -22,9 +22,8 @@ RUN chmod +x /app/wait-for-mlflow.sh \
     && chmod +x /app/wait-for-model.sh \
     && chmod +x /app/start-api.sh
 
-# Copy model & mlruns (optional)
-COPY model /app/model
-COPY mlruns /app/mlruns
-
+# Expose FastAPI port
 EXPOSE 8000
+
+# Start the API
 CMD ["./start-api.sh"]

@@ -1,22 +1,30 @@
+version: "3.9"
+
 services:
+  # ----------------------
+  # Jenkins CI Server
+  # ----------------------
   jenkins:
     build:
       context: .
       dockerfile: jenkins/Dockerfile
       args:
-        DOCKER_GID: 999  # Replace with host Docker GID
+        DOCKER_GID: 999  # Replace with your host Docker group GID
     container_name: jenkins
     ports:
-      - "8081:8080"
-      - "50000:50000"
+      - "8081:8080"       # Jenkins Web UI
+      - "50000:50000"     # Jenkins agent port
     volumes:
       - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock  # Allows Jenkins to control Docker
+      - /var/run/docker.sock:/var/run/docker.sock  # Allow Jenkins to run Docker
       - .:/workspace
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
     restart: unless-stopped
 
+  # ----------------------
+  # MLflow Tracking Server
+  # ----------------------
   mlflow-server:
     image: ghcr.io/mlflow/mlflow:v2.16.2
     container_name: mlflow-server
@@ -33,33 +41,44 @@ services:
       - ./mlflow:/mlflow
     restart: always
 
+  # ----------------------
+  # Model Trainer
+  # ----------------------
   trainer:
-    build: .
+    build:
+      context: ./trainer
+      dockerfile: Dockerfile
     container_name: diabetes-trainer
     depends_on:
       - mlflow-server
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow-server:5000
-    command: python train_diabetes_model.py
     volumes:
       - ./model:/app/model
       - ./mlruns:/app/mlruns
     restart: "no"
 
+
+  # ----------------------
+  # FastAPI Prediction API
+  # ----------------------
   diabetes-api:
-    build: .
+    build:
+      context: ./diabetes-api
+      dockerfile: Dockerfile
     container_name: diabetes-api
     depends_on:
       - mlflow-server
       - trainer
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow-server:5000
-    command: ["./wait-for-mlflow.sh", "./wait-for-model.sh", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+      - MODEL_PATH=/app/model/diabetes_rf_model.pkl
     volumes:
       - ./model:/app/model
       - ./mlruns:/app/mlruns
     ports:
       - "8000:8000"
+    command: ["./start-api.sh"]
     restart: always
 
 volumes:
