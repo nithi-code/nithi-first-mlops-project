@@ -69,7 +69,6 @@ http://localhost:8000
 
 #### Example /predict Request
 ```json
-POST /predict
 {
   "Pregnancies": 2,
   "Glucose": 90,
@@ -113,4 +112,12 @@ http://localhost:5000
   * Training experiment: parameters, metrics, model artifacts
 
   * Inference logs: input features, predicted label, probability, timestamp
+
+## Deployed Service
+
+| Diabetes Prediction API | http://localhost:8000/docs |
+| MLFlow  | http://localhost:5000 |
+| Promothu  | http://localhost:5000 |
+| Grafana  | http://localhost:5000 |
+| Jenkins  | http://localhost:5000 |
 
