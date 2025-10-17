@@ -17,21 +17,116 @@ A full **MLOps pipeline** for predicting diabetes risk using a Random Forest mod
 - Fully containerized for **reproducible deployment**
 - Wait scripts ensure **MLflow and model are ready** before API starts
 
+---
+
+## Services
+
+| Service    | URL                     |
+| ---------- | ----------------------- |
+| Diabetes Prediction API  | `http://localhost:8000/docs` |
+| MLflow     | `http://localhost:5000` |
+| Prometheus | `http://localhost:9090` |
+| Grafana    | `http://localhost:3000` |
+| Jenkins    | `http://localhost:8081/jenkins` |
+
+* **Model Service:** Flask app serving `/predict` endpoint with Swagger UI and Prometheus metrics.
+* **MLflow:** Model tracking server.
+* **Prometheus:** Metrics collection.
+* **Grafana:** Visualization dashboards.
+* **Jenkins:** CI/CD server.
+
+---
 
 ## Project Structure
 ```
 nithi-first-mlops-project/
-├── app.py # FastAPI API
-├── train_diabetes_model.py # Model training + MLflow logging
-├── Dockerfile # Container image definition
-├── docker-compose.yml # Compose for MLflow, trainer, API
-├── requirements.txt # Python dependencies
-├── wait-for-model.sh # Wait for model before API start
-├── wait-for-mlflow.sh # Wait for MLflow server before API start
-├── model/ # Saved model artifacts
-├── mlruns/ # MLflow experiment/artifacts storage
-└── mlflow/ # SQLite DB storage for MLflow
+│
+├── README.md
+├── LICENSE
+├── .gitignore
+├── docker-compose.yml
+├── Dockerfile
+├── Jenkinsfile
+│
+├── scripts/                       # helper scripts
+│   ├── wait-for-mlflow.sh
+│   ├── wait-for-model.sh
+│   └── validate_data.py
+│
+├── requirements.txt
+│
+├── mlflow/                         # MLflow server storage / configuration
+│   └── (e.g. backend_db, artifacts store configuration)
+│
+├── mlruns/                         # MLflow run logs & artifacts
+│
+├── data/                           # raw / processed data
+│   ├── raw/
+│   └── processed/                  # (optional)
+│
+├── trainer/                        # training / experiment logic
+│   ├── __init__.py
+│   ├── train.py                    # core training, MLflow logging
+│   ├── utils.py                    # helper functions (data loading, preprocessing)
+│   └── validation.py               # data validation before training
+│
+├── model/                          # saved models / artifacts (for deployment)
+│
+├── serving/                        # inference / API layer
+│   ├── __init__.py
+│   ├── app.py                       # FastAPI / API endpoints
+│   ├── inference.py                 # load model & run prediction logic
+│   └── schemas.py                   # Pydantic schemas for requests/responses
+│
+├── monitoring/                     # metrics / dashboards / integration
+│   ├── grafana/
+│   ├── prometheus/
+│   └── metrics_exporter.py          # code to export metrics
+│
+└── ci_cd/                           # CI/CD pipeline definitions / scripts
+    ├── jenkins/                     # Jenkins pipeline scripts
+    └── other_ci/                    # e.g. GitHub Actions if added later
 ```
+
+### Key design principles / justifications:
+
+1. Separation of concerns
+
+    * trainer/ handles model training logic, logging, experiments.
+    * serving/ handles inference, API endpoints, input/output schemas.
+    * monitoring/ handles metrics, dashboards, observability.
+    * ci_cd/ for pipeline definitions (Jenkins, or future ones).
+    * scripts/ for utility scripts (e.g. wait, validation) rather than putting them in root.
+
+2. Modularity
+
+    * You can import trainer.train and use it from CLI or pipeline.
+    * serving.inference module can be used independently of FastAPI or integrated into the API.
+
+3. Clear artifact separation
+
+    * mlruns/ for MLflow tracking.
+    * model/ for “production models” that are ready for deployment.
+    * mlflow/ for server backend storage.
+
+4. Data versioning / structure
+
+  * Keep raw data and processed data separate.
+  * Do not commit large data files; use .gitignore or a data versioning tool.
+
+5. CI/CD & MLOps integration
+
+  * Jenkins (in ci_cd/jenkins/) or pipeline scripts to run training, tests, model validation, deployment.
+  * The Jenkinsfile can live in the root but reference scripts in ci_cd/jenkins/.
+
+6. Monitoring / Logging
+
+  * Use monitoring/ to integrate metrics exporters, dashboards (Grafana, Prometheus).
+  * Keep these separate but integrated via docker-compose or pipeline.
+
+7. Configuration management
+
+   * You might add a config/ folder (or config.yaml) to store hyperparameters, data paths, etc, so they’re not hard-coded.
 
 ## Prerequisites
 
@@ -112,12 +207,5 @@ http://localhost:5000
   * Training experiment: parameters, metrics, model artifacts
 
   * Inference logs: input features, predicted label, probability, timestamp
-
-## Deployed Service
-
-| Diabetes Prediction API | http://localhost:8000/docs |
-| MLFlow  | http://localhost:5000 |
-| Promothu  | http://localhost:5000 |
-| Grafana  | http://localhost:5000 |
 | Jenkins  | http://localhost:5000 |
 
